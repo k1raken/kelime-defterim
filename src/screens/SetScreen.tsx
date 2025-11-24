@@ -131,30 +131,21 @@ export default function SetScreen() {
           text-align: center;
           height: 100%;
           width: 100%;
-          overflow: hidden;
+          overflow: visible;
           position: relative;
         }
-        .card-content {
-          width: 100%;
-          font-weight: 700;
-          color: #000;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          grid-template-rows: repeat(4, 1fr);
-          gap: 0;
-        }
-        .page:last-child { page-break-after: auto; }
-        .card {
-          border: 1px dashed #999;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px;
-          text-align: center;
-          height: 100%;
-          width: 100%;
-          overflow: hidden;
-          position: relative;
+        .card::before {
+          content: '✂';
+          position: absolute;
+          top: -9px;
+          left: -9px;
+          width: 14px;
+          height: 14px;
+          font-size: 10px;
+          line-height: 14px;
+          color: #999;
+          background: #fff;
+          z-index: 1;
         }
         .card-content {
           width: 100%;
@@ -391,17 +382,25 @@ export default function SetScreen() {
     >
       <Flex direction="column" align="center" justify="flex-start" w="100%" gap={8}>
         {/* Header */}
-        <Flex justify="space-between" align="center" w="100%" maxW="1000px" gap={3}>
+        <Flex
+          direction={{ base: 'column', md: 'row' }}
+          justify="space-between"
+          align="center"
+          w="100%"
+          maxW="1000px"
+          gap={{ base: 4, md: 3 }}
+        >
           <Button
             leftIcon={<ChevronLeftIcon />}
             variant="ghost"
             onClick={() => navigate(`/day/${dayId}`)}
             color="deepSea.lavenderGrey"
             _hover={{ color: 'white', bg: 'whiteAlpha.200' }}
+            alignSelf={{ base: 'flex-start', md: 'auto' }}
           >
             Geri Dön
           </Button>
-          <VStack spacing={0}>
+          <VStack spacing={0} mb={{ base: 2, md: 0 }}>
             <Heading size="lg" bgGradient="linear(to-r, deepSea.duskBlue, deepSea.lavenderGrey)" bgClip="text" textAlign="center">
               {setItem?.name || "Set"}
             </Heading>
