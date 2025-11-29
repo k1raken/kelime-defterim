@@ -66,6 +66,23 @@ export default function AcademicPrintScreen() {
         chunks.push(filteredWords.slice(i, i + 4))
     }
 
+    // Helper to render bold text from **text** format
+    const renderBoldText = (text: string) => {
+        if (!text) return text
+        // Split by **...** capturing the delimiter
+        const parts = text.split(/(\*\*.*?\*\*)/g)
+        return parts.map((part, index) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                return (
+                    <Text as="span" fontWeight="bold" color="purple.600" key={index}>
+                        {part.slice(2, -2)}
+                    </Text>
+                )
+            }
+            return <span key={index}>{part}</span>
+        })
+    }
+
     return (
         <Box minH="100vh" bg="#0f172a" fontFamily="'Inter', sans-serif"> {/* Deep Sea / Dark Mode Background */}
             {/* --- Control Panel (Hidden on Print) --- */}
@@ -156,33 +173,86 @@ export default function AcademicPrintScreen() {
                     {`
             @media print {
               .no-print { display: none !important; }
-              .page-break { page-break-after: always; }
-              @page { size: A4 portrait; margin: 10mm; }
-              body { background: white !important; -webkit-print-color-adjust: exact; }
-              .print-area { padding: 0 !important; display: block !important; background: white !important; }
-              .page-container {
-                margin: 0 !important;
-                box-shadow: none !important;
-                border: none !important;
-                width: 100% !important;
-                height: 100% !important;
-                transform: none !important;
-              }
+              
+            @page {
+              size: A4 portrait;
+              margin: 0mm;
             }
+            html, body, #root {
+              margin: 0;
+              padding: 0;
+              width: 210mm;
+              height: auto !important; /* FIXED: Allow multi-page growth */
+              background: white !important;
+            }
+
+            .print-area { 
+              width: 210mm;
+              margin: 0;
+              padding: 0;
+              background: white !important;
+            }
+
+            .page-container {
+              width: 210mm !important;
+              height: 297mm !important; /* Full A4 Height */
+              padding: 10mm !important;
+              margin: 0 auto !important;
+              box-sizing: border-box !important;
+              display: grid !important;
+              grid-template-columns: 1fr 1fr !important;
+              grid-template-rows: 1fr 1fr !important;
+              gap: 10mm !important;
+              page-break-after: always !important;
+              overflow: hidden;
+            }
+
+            /* Explicitly disable break for the last page */
+            .page-container.last-page {
+              page-break-after: auto !important;
+              break-after: auto !important;
+              margin-bottom: 0 !important;
+              padding-bottom: 0 !important;
+            }
+            
+            /* Standard Card Layout for Print */
+            .flashcard {
+              height: 100% !important;
+              border: 2px solid #1a202c !important;
+              break-inside: avoid;
+              padding: 1rem !important;
+              overflow: hidden !important;
+              display: flex !important;
+              flex-direction: column !important;
+            }
+            
+            .flashcard .academic-context-box { padding-left: 0.5rem !important; border-left-width: 3px !important; }
+          }
+
+            /* Screen Preview Styles - MATCHING PRINT STYLES */
             .page-container {
               width: 210mm;
-              height: 297mm;
+              height: 260mm; /* Match print height */
               background: white;
               margin-bottom: 2rem;
-              padding: 10mm;
+              padding: 10mm; /* Match print padding */
               box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
               display: grid;
-              grid-template-columns: 1fr 1fr;
-              grid-template-rows: 1fr 1fr;
-              gap: 15px;
+              /* Match print grid */
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              grid-template-rows: repeat(2, minmax(0, 1fr));
+              gap: 5mm; /* Match print gap */
               position: relative;
+              overflow: hidden; /* Match print overflow */
             }
-            /* Mobile Responsiveness */
+
+            /* Apply standard styles to screen preview as well */
+            .page-container .flashcard {
+                padding: 1rem !important;
+                overflow: hidden !important;
+            }
+
+            /* Mobile Responsiveness for Preview */
             @media screen and (max-width: 850px) {
                 .page-container {
                     transform: scale(0.45);
@@ -202,119 +272,184 @@ export default function AcademicPrintScreen() {
                 )}
 
                 {chunks.map((chunk, pageIndex) => (
-                    <Box key={pageIndex} className="page-container page-break">
-                        {/* Watermark/Guide for screen view */}
-                        <Text
-                            className="no-print"
-                            position="absolute"
-                            top="-30px"
-                            left="0"
-                            color="gray.400"
-                            fontSize="sm"
-                            fontWeight="bold"
-                        >
-                            Page {pageIndex + 1} (A4 Preview)
-                        </Text>
-
-                        {chunk.map((word) => (
-                            <Flex
-                                key={word.id}
-                                direction="column"
-                                border="2px solid #1a202c"
-                                p={6} // Increased padding
-                                justify="space-between"
-                                h="100%"
-                                borderRadius="lg"
-                                bg="white"
-                                position="relative"
-                                className="flashcard"
-                                transition="all 0.2s"
-                                _hover={{ borderColor: "purple.500", boxShadow: "md" }}
-                                role="group"
-                            >
-                                {/* Delete Button (Hover only, hidden on print) */}
+                    <React.Fragment key={pageIndex}>
+                        <Box className={`page-container ${pageIndex === chunks.length - 1 ? 'last-page' : ''}`}>
+                            {/* Cut Lines Overlay */}
+                            <Box position="absolute" inset="0" pointerEvents="none" zIndex={10} className="cut-lines">
+                                {/* Vertical Line */}
                                 <Box
                                     position="absolute"
-                                    top={3}
-                                    right={3}
-                                    className="no-print"
-                                    opacity={0}
-                                    _groupHover={{ opacity: 1 }}
-                                    transition="opacity 0.2s"
-                                    cursor="pointer"
-                                    onClick={() => handleDelete(word.id)}
-                                    bg="red.50"
-                                    p={2}
+                                    left="50%"
+                                    top="0"
+                                    bottom="0"
+                                    borderLeft="2px dashed"
+                                    borderColor="gray.300"
+                                    transform="translateX(-50%)"
+                                />
+                                {/* Horizontal Line */}
+                                <Box
+                                    position="absolute"
+                                    top="50%"
+                                    left="0"
+                                    right="0"
+                                    borderTop="2px dashed"
+                                    borderColor="gray.300"
+                                    transform="translateY(-50%)"
+                                />
+                                {/* Scissors Center */}
+                                <Box
+                                    position="absolute"
+                                    top="50%"
+                                    left="50%"
+                                    transform="translate(-50%, -50%)"
+                                    bg="white"
+                                    p={1}
                                     borderRadius="full"
-                                    _hover={{ bg: "red.100" }}
+                                    border="1px solid"
+                                    borderColor="gray.200"
+                                    display="flex"
+                                    alignItems="center"
+                                    justifyContent="center"
+                                    width="30px"
+                                    height="30px"
+                                    fontSize="16px"
                                 >
-                                    <DeleteIcon color="red.500" boxSize={4} />
+                                    ✂️
                                 </Box>
+                            </Box>
 
-                                {/* Header */}
-                                <Box>
-                                    <Flex justify="space-between" align="baseline" mb={2} pr={8}>
-                                        <Heading size="xl" fontFamily="'Merriweather', serif" letterSpacing="tight" color="gray.900" fontWeight="bold">
-                                            {word.eng}
-                                        </Heading>
-                                        <Badge colorScheme="gray" fontSize="md" fontStyle="italic" px={2} borderRadius="full">
-                                            {word.type || "?"}
-                                        </Badge>
-                                    </Flex>
-                                    <Divider borderColor="gray.800" borderBottomWidth="2px" mb={4} opacity={1} />
+                            {/* Watermark/Guide for screen view */}
+                            <Text
+                                className="no-print"
+                                position="absolute"
+                                top="-30px"
+                                left="0"
+                                color="gray.400"
+                                fontSize="sm"
+                                fontWeight="bold"
+                            >
+                                Page {pageIndex + 1} (A4 Preview)
+                            </Text>
 
-                                    {/* Definition */}
-                                    <Box mb={4}>
-                                        <Text fontWeight="bold" fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wider" mb={1}>
-                                            Definition
-                                        </Text>
-                                        <Text fontSize="md" lineHeight="1.5" fontWeight="500" color="gray.800" fontFamily="sans-serif">
-                                            {word.engDefinition || "No definition available."}
-                                        </Text>
+                            {chunk.map((word) => (
+                                <Flex
+                                    key={word.id}
+                                    direction="column"
+                                    border="2px solid #1a202c"
+                                    p={4}
+                                    justify="space-between"
+                                    h="100%"
+                                    borderRadius="lg"
+                                    bg="white"
+                                    position="relative"
+                                    className="flashcard"
+                                    transition="all 0.2s"
+                                    _hover={{ borderColor: "purple.500", boxShadow: "md" }}
+                                    role="group"
+                                >
+                                    {/* Delete Button (Hover only, hidden on print) */}
+                                    <Box
+                                        position="absolute"
+                                        top={3}
+                                        right={3}
+                                        className="no-print"
+                                        opacity={0}
+                                        _groupHover={{ opacity: 1 }}
+                                        transition="opacity 0.2s"
+                                        cursor="pointer"
+                                        onClick={() => handleDelete(word.id)}
+                                        bg="red.50"
+                                        p={2}
+                                        borderRadius="full"
+                                        _hover={{ bg: "red.100" }}
+                                    >
+                                        <DeleteIcon color="red.500" boxSize={4} />
                                     </Box>
 
-                                    {/* Synonyms */}
-                                    {word.synonym && (
+                                    {/* Header */}
+                                    <Box>
+                                        <Flex justify="space-between" align="baseline" mb={2} pr={8}>
+                                            <Heading size="xl" fontFamily="'Merriweather', serif" letterSpacing="tight" color="gray.900" fontWeight="bold">
+                                                {word.eng}
+                                            </Heading>
+                                            <Badge colorScheme="gray" fontSize="md" fontStyle="italic" px={2} borderRadius="full">
+                                                {word.type || "?"}
+                                            </Badge>
+                                        </Flex>
+                                        <Divider borderColor="gray.800" borderBottomWidth="2px" mb={4} opacity={1} />
+
+                                        {/* Definition */}
                                         <Box mb={4}>
-                                            <Text fontWeight="bold" fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wider" mb={1}>
-                                                Synonyms
+                                            <Text fontWeight="bold" fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wider" mb={1} className="definition-label">
+                                                Definition
                                             </Text>
-                                            <Text fontStyle="italic" fontSize="sm" color="gray.700">
-                                                {word.synonym}
+                                            <Text fontSize="md" lineHeight="1.5" fontWeight="500" color="gray.800" fontFamily="sans-serif">
+                                                {renderBoldText(word.engDefinition || "No definition available.")}
                                             </Text>
                                         </Box>
-                                    )}
-                                </Box>
 
-                                {/* Sentences */}
-                                <Box flex="1" my={2}>
-                                    <Text fontWeight="bold" fontSize="xs" color="gray.500" textTransform="uppercase" mb={2} letterSpacing="wider">
-                                        Academic Context
-                                    </Text>
-                                    <VStack align="start" spacing={3}>
-                                        {word.academicSentences && word.academicSentences.length > 0 ? (
-                                            word.academicSentences.slice(0, 2).map((sentence, idx) => (
-                                                <Box key={idx} pl={3} borderLeft="4px solid" borderColor="purple.400">
-                                                    <Text fontSize="sm" color="gray.800" lineHeight="1.4" fontStyle="italic">
-                                                        "{sentence}"
-                                                    </Text>
-                                                </Box>
-                                            ))
-                                        ) : (
-                                            <Text fontSize="sm" color="gray.400" fontStyle="italic">No academic sentences available.</Text>
+                                        {/* Synonyms */}
+                                        {word.synonym && (
+                                            <Box mb={4}>
+                                                <Text fontWeight="bold" fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wider" mb={1} className="definition-label">
+                                                    Synonyms
+                                                </Text>
+                                                <Text fontStyle="italic" fontSize="sm" color="gray.700">
+                                                    {word.synonym}
+                                                </Text>
+                                            </Box>
                                         )}
-                                    </VStack>
-                                </Box>
+                                    </Box>
 
-                                {/* Footer (Turkish) */}
-                                <Box mt="auto" pt={4} borderTop="1px dashed #cbd5e0">
-                                    <Text textAlign="center" fontWeight="800" fontSize="xl" color="gray.900">
-                                        {word.tr}
-                                    </Text>
-                                </Box>
-                            </Flex>
-                        ))}
-                    </Box>
+                                    {/* Sentences - Flexible Height with Overflow Protection */}
+                                    <Box flex="1" my={2} overflow="hidden" minH={0}>
+                                        <Text fontWeight="bold" fontSize="xs" color="gray.500" textTransform="uppercase" mb={2} letterSpacing="wider" className="definition-label">
+                                            Academic Context
+                                        </Text>
+                                        <VStack align="start" spacing={3}>
+                                            {word.academicSentences && word.academicSentences.length > 0 ? (
+                                                word.academicSentences.slice(0, 1).map((sentence, idx) => {
+                                                    const isLongText = sentence.length > 150;
+                                                    return (
+                                                        <Box key={idx} pl={3} borderLeft="4px solid" borderColor="purple.400" className="academic-context-box">
+                                                            <Text
+                                                                fontSize={isLongText ? "xs" : "sm"}
+                                                                color="gray.800"
+                                                                lineHeight="1.4"
+                                                                fontStyle="italic"
+                                                                noOfLines={3}
+                                                            >
+                                                                "{renderBoldText(sentence)}"
+                                                            </Text>
+                                                        </Box>
+                                                    );
+                                                })
+                                            ) : (
+                                                <Text fontSize="sm" color="gray.400" fontStyle="italic">No academic sentences available.</Text>
+                                            )}
+                                        </VStack>
+                                    </Box>
+
+                                    {/* Footer (Turkish) - Fixed Bottom, Auto-Scaling */}
+                                    <Box mt="auto" pt={4} borderTop="1px dashed #cbd5e0" flexShrink={0}>
+                                        <Text
+                                            textAlign="center"
+                                            fontWeight="800"
+                                            fontSize={word.tr.length > 20 ? "lg" : "xl"}
+                                            color="gray.900"
+                                            className="tr-footer"
+                                        >
+                                            {word.tr}
+                                        </Text>
+                                    </Box>
+                                </Flex>
+                            ))}
+                        </Box>
+                        {/* Explicit Page Break Spacer */}
+                        {pageIndex < chunks.length - 1 && (
+                            <Box className="force-page-break" />
+                        )}
+                    </React.Fragment>
                 ))}
             </Box>
         </Box>
